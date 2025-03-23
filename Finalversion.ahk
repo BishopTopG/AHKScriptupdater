@@ -609,7 +609,7 @@ CreateSettingsGUI() {
     settingsGui.BackColor := "0x1E1E1E"  ; Dark theme
     
     ; Add title with better styling
-    titleText := settingsGui.Add("Text", "w780 Center y20 c0xFF3333", "ColdMX™ EDIT ENGINE")
+    titleText := settingsGui.Add("Text", "w780 Center y20 c0xFF3333", "ColdMX™ EDIT ENGINE V1.0.0")
     titleText.SetFont("s12 Bold", "Consolas")  ; Reduced from s16
     
     ; Add subtitle
