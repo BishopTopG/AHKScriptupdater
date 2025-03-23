@@ -6,7 +6,7 @@ SetWorkingDir %A_ScriptDir%
 ; Configuration
 github_user := "BishopTopG"
 github_repo := "AHKScriptupdater"
-script_name := "Finalversion.ahk"
+script_name := "ColdMX.exe"
 local_version_file := A_ScriptDir . "\version.txt"
 
 ; Simple GUI
