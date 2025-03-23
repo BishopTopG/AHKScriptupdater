@@ -1,3 +1,10 @@
+; ================================================
+; Finalversion.ahk
+; Version: 1.0.0
+; Last Updated: 2025-03-22
+; Author: BishopTopG
+; ================================================
+
 #Requires AutoHotkey v2.0.19
 #SingleInstance Force
 #MaxThreadsPerHotkey 3  ; Allow multiple threads for smoother operation with rapid edits
