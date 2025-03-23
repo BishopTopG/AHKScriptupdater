@@ -1,128 +1,121 @@
-; Enhanced GitHub Auto-Updater for AHK
+; Simplified GitHub Auto-Updater for AHK
 #SingleInstance Force
 #NoEnv
 SetWorkingDir %A_ScriptDir%
 
 ; Configuration
-github_user := "YourUsername"
-github_repo := "YourRepoName"
-script_name := "main-script.ahk"
+github_user := "BishopTopG"
+github_repo := "AHKScriptupdater"
+script_name := "Finalversion.ahk"
 local_version_file := A_ScriptDir . "\version.txt"
-current_script := A_ScriptDir . "\" . script_name
-changelog_url := "https://github.com/" . github_user . "/" . github_repo . "/blob/main/changelog.txt"
 
-; Add a GUI for better user experience
+; Simple GUI
 Gui, +AlwaysOnTop
 Gui, Add, Text, w300, Checking for updates...
 Gui, Show, w320 h100, AHK Script Updater
 
 ; Read local version
+local_version := "Not installed"
 if FileExist(local_version_file) {
-    FileRead, local_version, %local_version_file%
-    local_version := Trim(local_version)
-} else {
-    local_version := "0.0.0"
-    FileAppend, %local_version%, %local_version_file%
+    FileRead, file_content, %local_version_file%
+    if (file_content != "") {
+        local_version := RegExReplace(file_content, "[\r\n\s]", "")
+    }
 }
 
-; GitHub API request (more reliable than raw file download)
-whr := ComObjCreate("WinHttp.WinHttpRequest.5.1")
-api_url := "https://api.github.com/repos/" . github_user . "/" . github_repo . "/contents/version.txt"
-try {
-    whr.Open("GET", api_url, false)
-    whr.Send()
-    response := whr.ResponseText
-    
-    ; Parse JSON response
-    RegExMatch(response, """content"":""([^""]+)", content_match)
-    if (content_match1) {
-        ; GitHub API returns Base64 encoded content
-        remote_version_base64 := content_match1
-        ; Convert from Base64 (simplified approach)
-        remote_version := Base64Decode(StrReplace(remote_version_base64, "\n", ""))
-        remote_version := Trim(remote_version)
-        
-        ; Compare versions
-        if (CompareVersions(remote_version, local_version) > 0) {
-            Gui, Destroy
-            MsgBox, 4, Update Available, A new version (%remote_version%) is available. Update now?`n`nYou currently have version %local_version%.
-            IfMsgBox Yes
-            {
-                Gui, New, +AlwaysOnTop
-                Gui, Add, Progress, w300 h20 vUpdateProgress
-                Gui, Add, Text, w300 vUpdateStatus, Downloading update...
-                Gui, Show, w320 h100, Updating Script
-                
-                ; Download new script
-                script_url := "https://raw.githubusercontent.com/" . github_user . "/" . github_repo . "/main/" . script_name
-                backup_script := A_ScriptDir . "\backup_" . script_name
-                
-                ; Backup current script
-                if FileExist(current_script)
-                    FileCopy, %current_script%, %backup_script%, 1
-                
-                ; Download new script
-                UrlDownloadToFile, %script_url%, %current_script%
-                
-                GuiControl,, UpdateProgress, 50
-                GuiControl,, UpdateStatus, Updating version information...
-                
-                ; Update local version file
-                FileDelete, %local_version_file%
-                FileAppend, %remote_version%, %local_version_file%
-                
-                GuiControl,, UpdateProgress, 100
-                GuiControl,, UpdateStatus, Update complete! Restarting...
-                Sleep, 1000
-                
-                ; Show changelog option
-                Gui, Destroy
-                MsgBox, 4, Update Complete, Update to version %remote_version% successful!`n`nWould you like to view the changelog?
-                IfMsgBox Yes
-                    Run, %changelog_url%
-                
-                ; Restart script
-                Run, %current_script%
-                ExitApp
-            }
-        } else {
-            Gui, Destroy
-            MsgBox, You have the latest version (%local_version%).
-        }
-    }
-} catch e {
+; Get remote version directly (avoid API to simplify)
+version_url := "https://raw.githubusercontent.com/" . github_user . "/" . github_repo . "/main/version.txt"
+
+; Create a temporary file for the version
+version_temp := A_ScriptDir . "\version_temp.txt"
+FileDelete, %version_temp%
+
+; Download the version file
+UrlDownloadToFile, %version_url%, %version_temp%
+if (ErrorLevel) {
     Gui, Destroy
-    MsgBox, Failed to check for updates. Will continue with current version.`n`nError: %e%
+    MsgBox, Failed to download version information. Please check your internet connection.
+    ExitApp
 }
 
-; Launch the main script
-Run, %current_script%
-ExitApp
+; Read the downloaded version
+FileRead, remote_version, %version_temp%
+remote_version := RegExReplace(remote_version, "[\r\n\s]", "")
+FileDelete, %version_temp%
 
-; Function to compare version strings
-CompareVersions(vA, vB) {
-    vA_parts := StrSplit(vA, ".")
-    vB_parts := StrSplit(vB, ".")
-    
-    Loop, % Max(vA_parts.MaxIndex(), vB_parts.MaxIndex())
-    {
-        a := (A_Index <= vA_parts.MaxIndex()) ? vA_parts[A_Index] : 0
-        b := (A_Index <= vB_parts.MaxIndex()) ? vB_parts[A_Index] : 0
-        
-        if (a > b)
-            return 1
-        if (a < b)
-            return -1
+; Find existing scripts
+existing_script := ""
+Loop, Files, %A_ScriptDir%\*.%script_name%
+{
+    SplitPath, A_LoopFileFullPath, file_name
+    existing_script := A_LoopFileFullPath
+    Break ; Just take the first one we find for simplicity
+}
+
+; Check if we need to download
+if (!existing_script || local_version = "Not installed" || local_version != remote_version) {
+    if (!existing_script) {
+        GuiControl,, Static1, Script not found. Downloading...
+    } else if (local_version != remote_version) {
+        Gui, Destroy
+        MsgBox, 4, Update Available, A new version (%remote_version%) is available. Update now?`n`nCurrent: %local_version%
+        IfMsgBox No
+        {
+            if (existing_script) {
+                Run, %existing_script%
+            }
+            ExitApp
+        }
+        Gui, +AlwaysOnTop
+        Gui, Add, Text, w300, Downloading update...
+        Gui, Show, w320 h100, Updating Script
     }
-    return 0
+    
+    ; Create the download path - CAREFUL with the filename
+    script_url := "https://raw.githubusercontent.com/" . github_user . "/" . github_repo . "/main/" . script_name
+    clean_version := Trim(remote_version)
+    output_filename := clean_version . "." . script_name
+    output_path := A_ScriptDir . "\" . output_filename
+    
+    ; Double check for any bad characters
+    StringReplace, output_path, output_path, `r, , All
+    StringReplace, output_path, output_path, `n, , All
+    
+    ; Ensure the file doesn't exist
+    if FileExist(output_path) {
+        FileDelete, %output_path%
+    }
+    
+    ; Try direct download
+    UrlDownloadToFile, %script_url%, %output_path%
+    download_error := ErrorLevel
+    
+    if (download_error) {
+        Gui, Destroy
+        MsgBox, Failed to download the script. Please check your internet connection.
+        ExitApp
+    }
+    
+    ; Verify file was downloaded
+    if FileExist(output_path) {
+        FileDelete, %local_version_file%
+        FileAppend, %remote_version%, %local_version_file%
+        
+        Gui, Destroy
+        MsgBox, Update to version %remote_version% successful!
+        
+        ; Run the new script
+        Run, %output_path%
+    } else {
+        Gui, Destroy
+        MsgBox, Failed to create the script file after download. Check permissions.
+    }
+} else {
+    GuiControl,, Static1, You have the latest version: %local_version%
+    Sleep, 1000
+    
+    ; Run the existing script
+    Run, %existing_script%
 }
 
-; Simple Base64 decoder function
-Base64Decode(string) {
-    if !(DllCall("crypt32\CryptStringToBinary", "ptr", &string, "uint", 0, "uint", 0x1, "ptr", 0, "uint*", size, "ptr", 0, "ptr", 0))
-        return
-    VarSetCapacity(bin, size, 0)
-    if !(DllCall("crypt32\CryptStringToBinary", "ptr", &string, "uint", 0, "uint", 0x1, "ptr", &bin, "uint*", size, "ptr", 0, "ptr", 0))
-        return
-    return StrGet(&bin, size, "UTF-8")
-}
+ExitApp
